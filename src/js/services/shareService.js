@@ -1,5 +1,6 @@
+// shareService.js - Actualizado
 const ShareService = {
-    baseUrl: 'https://godzonex15.github.io/',
+    baseUrl: window.location.href, // URL actual
     
     init() {
         // Check for shared property on page load
@@ -12,49 +13,29 @@ const ShareService = {
 
         // Listen for iframe messages from parent
         window.addEventListener('message', (event) => {
-            // Verify origin if needed
-            if (event.data.type === 'shareProperty') {
-                this.handleSharedProperty();
+            // Verificar origen para seguridad
+            if (this.isValidOrigin(event.origin)) {
+                if (event.data.type === 'shareProperty') {
+                    this.handleSharedProperty();
+                }
             }
         });
     },
 
+    isValidOrigin(origin) {
+        // Lista de dominios permitidos
+        const allowedDomains = [
+            'https://bajasurrealtors.com',
+            'https://godzonex15.github.io'
+        ];
+        return allowedDomains.includes(origin);
+    },
+
     generateShareUrl(propertyId) {
+        // Crear URL con parámetros para compartir
         const url = new URL(this.baseUrl);
         url.searchParams.set('property', propertyId);
         return url.toString();
-    },
-
-    handleSharedProperty() {
-        const params = new URLSearchParams(window.location.search);
-        const propertyId = params.get('property');
-        
-        if (propertyId) {
-            const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
-            if (property) {
-                // Show property details
-                setTimeout(() => {
-                    PropertyModal.show(propertyId);
-                }, 500);
-
-                // Update map if needed
-                if (PropertyMap && PropertyMap.focusMarker) {
-                    PropertyMap.focusMarker(propertyId);
-                }
-
-                // Update URL without reload
-                const newUrl = this.generateShareUrl(propertyId);
-                window.history.replaceState({ propertyId }, '', newUrl);
-
-                // Notify parent frame if in iframe
-                if (window.parent !== window) {
-                    window.parent.postMessage({
-                        type: 'propertySelected',
-                        propertyId: propertyId
-                    }, '*');
-                }
-            }
-        }
     },
 
     async shareProperty(propertyId) {
@@ -69,27 +50,69 @@ const ShareService = {
         };
 
         try {
+            // Intentar usar Web Share API si está disponible
             if (navigator.share) {
                 await navigator.share(shareData);
                 NotificationService.success('Property shared successfully!');
             } else {
+                // Fallback a copiar al portapapeles
                 await navigator.clipboard.writeText(shareUrl);
                 NotificationService.success('Link copied to clipboard!', {
                     title: 'Share Property',
                     duration: 2000
                 });
             }
+
+            // Notificar a la página padre
+            this.notifyParentPage(propertyId);
+
         } catch (error) {
             if (error.name !== 'AbortError') {
                 NotificationService.error('Error sharing property');
                 console.error('Error sharing:', error);
             }
         }
+    },
+
+    notifyParentPage(propertyId) {
+        // Enviar mensaje a la página padre
+        if (window.parent !== window) {
+            window.parent.postMessage({
+                type: 'propertyShared',
+                propertyId: propertyId,
+                url: this.generateShareUrl(propertyId)
+            }, '*');  // En producción, especificar origen exacto
+        }
+    },
+
+    handleSharedProperty() {
+        // Manejar propiedad compartida
+        const params = new URLSearchParams(window.location.search);
+        const propertyId = params.get('property');
+        
+        if (propertyId) {
+            const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
+            if (property) {
+                // Mostrar detalles de la propiedad
+                setTimeout(() => {
+                    PropertyModal.show(propertyId);
+                }, 500);
+
+                // Actualizar mapa
+                if (PropertyMap && PropertyMap.focusMarker) {
+                    PropertyMap.focusMarker(propertyId);
+                }
+
+                // Actualizar URL sin recargar
+                const newUrl = this.generateShareUrl(propertyId);
+                window.history.replaceState({ propertyId }, '', newUrl);
+            }
+        }
     }
 };
 
-// Initialize service
+// Inicializar servicio
 ShareService.init();
 
-// Export for global use
+// Exportar para uso global
 window.ShareService = ShareService;
