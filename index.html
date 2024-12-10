@@ -1,174 +1,131 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Baja Sur Realtors| Luxury Real Estate</title>
+    <title>Real Estate Explorer</title>
     
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- CDN externos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-    <!-- Leaflet CSS y JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Estilos locales -->
+    <link rel="stylesheet" href="src/css/utilities.css">
+    <link rel="stylesheet" href="src/css/animations.css">
+    <link rel="stylesheet" href="src/css/main.css">
+    <link rel="stylesheet" href="src/css/components/base.css">
+    <link rel="stylesheet" href="src/css/components/search-filters.css">
+    <link rel="stylesheet" href="src/css/components/property-card.css">
+    <link rel="stylesheet" href="src/css/components/layout.css">
+    <link rel="stylesheet" href="src/css/components/map.css">
+    <link rel="stylesheet" href="src/css/components/property-preview.css">
+    <link rel="stylesheet" href="src/css/modal.css">
+    <link rel="stylesheet" href="src/css/compare.css">
+    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://bajasurrealtors.com">
 
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Custom CSS -->
-    <link href="css/styles.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    
 </head>
-<body class="modern-theme">
-    <!-- Main Split View Container -->
+<body>
     <div class="split-view-container">
-        <!-- Left Panel: Filters and Properties -->
+        <!-- Left Panel -->
         <div class="left-panel">
-            <!-- Search Filters -->
             <div class="search-container glass-morphism">
-                <form onsubmit="event.preventDefault(); applyFilters();" class="w-100">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <div class="form-floating">
-                                <select id="propertyType" name="propertyType" class="form-select" onchange="updateFilters('propertyType', this.value)">
-                                    <option value="">All Types</option>
-                                    <option value="Houses">House</option>
-                                    <option value="Apartments">Apartment</option>
-                                    <option value="Condos">Condo</option>
-                                    <option value="Land">Land</option>
-                                </select>
-                                <label>Property Type</label>
-                            </div>
+                <form class="basic-filters">
+                    <div class="filter-row">
+                        <!-- Property Type Filter -->
+                        <div class="filter-group">
+                            <label for="propertyType">Property Type</label>
+                            <select id="propertyType" class="filter-select">
+                                <!-- Options filled by JavaScript -->
+                            </select>
                         </div>
 
-                        <div class="col-md-4">
-                            <div class="form-floating">
-                                <select id="location" name="location" class="form-select" onchange="updateFilters('location', this.value)">
-                                    <option value="">All Locations</option>
-                                    <option value="Bay of Dreams">Bay of Dreams</option>
-                                    <option value="Cerro Colorado">Cerro Colorado</option>
-                                    <option value="Constitucion">Constitucion</option>
-                                    <option value="CSL-Beach & Marina">CSL-Beach & Marina</option>
-                                    <option value="CSL-Centro">CSL-Centro</option>
-                                    <option value="CSL Cor-Inland">CSL Cor-Inland</option>
-                                    <option value="CSL-Corr. Oceanside">CSL-Corr. Oceanside</option>
-                                    <option value="CSL-North">CSL-North</option>
-                                    <option value="East Cape North">East Cape North</option>
-                                    <option value="East Cape South">East Cape South</option>
-                                    <option value="Ejidos">Ejidos</option>
-                                    <option value="El Centenario">El Centenario</option>
-                                    <option value="El Sargento">El Sargento</option>
-                                    <option value="Excondido South">Excondido South</option>
-                                    <option value="LaPaz Beach">LaPaz Beach</option>
-                                    <option value="La Paz City">La Paz City</option>
-                                    <option value="La Ventana">La Ventana</option>
-                                    <option value="Loreto">Loreto</option>
-                                    <option value="Los Planes">Los Planes</option>
-                                    <option value="Mulege">Mulege</option>
-                                    <option value="Nopolo">Nopolo</option>
-                                    <option value="Pacific North">Pacific North</option>
-                                    <option value="Pacific South">Pacific South</option>
-                                    <option value="San Juan de la Costa">San Juan de la Costa</option>
-                                    <option value="San Pedro">San Pedro</option>
-                                    <option value="Scorpion Bay">Scorpion Bay</option>
-                                    <option value="SJD-Beachside">SJD-Beachside</option>
-                                    <option value="SJD-Centro">SJD-Centro</option>
-                                    <option value="SJD Corr-Inland">SJD Corr-Inland</option>
-                                    <option value="SJD Corr-Oceanside">SJD Corr-Oceanside</option>
-                                    <option value="SJD-East">SJD-East</option>
-                                    <option value="SJD-Inland/Golf">SJD-Inland/Golf</option>
-                                    <option value="SJD-North">SJD-North</option>
-                                </select>
-                                <label>Location</label>
-                            </div>
+                        <!-- Location Filter -->
+                        <div class="filter-group">
+                            <label for="location">Location</label>
+                            <select id="location" class="filter-select">
+                                <!-- Options filled by JavaScript -->
+                            </select>
                         </div>
 
-                        <div class="col-md-4">
-                            <div class="form-floating">
-                                <select id="priceRange" name="priceRange" class="form-select" onchange="updateFilters('priceRange', this.value)">
-                                    <option value="">Any Price</option>
-                                    <option value="0-100000">$0 - $100,000</option>
-                                    <option value="100000-200000">$100,000 - $200,000</option>
-                                    <option value="200000-300000">$200,000 - $300,000</option>
-                                    <option value="300000-400000">$300,000 - $400,000</option>
-                                    <option value="400000-">$400,000+</option>
-                                </select>
-                                <label>Price Range</label>
-                            </div>
+                        <!-- Price Range Filter -->
+                        <div class="filter-group">
+                            <label for="priceRange">Price Range</label>
+                            <select id="priceRange" class="filter-select">
+                                <!-- Options filled by JavaScript -->
+                            </select>
                         </div>
 
-                        <div class="col-md-4">
-                            <div class="form-floating">
-                                <select id="bedrooms" name="bedrooms" class="form-select" onchange="updateFilters('bedrooms', this.value)">
-                                    <option value="">Any</option>
-                                    <option value="1">1+</option>
-                                    <option value="2">2+</option>
-                                    <option value="3">3+</option>
-                                    <option value="4">4+</option>
-                                    <option value="5">5+</option>
-                                </select>
-                                <label>Bedrooms</label>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="form-floating">
-                                <select id="bathrooms" name="bathrooms" class="form-select" onchange="updateFilters('bathrooms', this.value)">
-                                    <option value="">Any</option>
-                                    <option value="1">1+</option>
-                                    <option value="2">2+</option>
-                                    <option value="3">3+</option>
-                                    <option value="4">4+</option>
-                                    <option value="5">5+</option>
-                                </select>
-                                <label>Bathrooms</label>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <button type="button" class="btn btn-primary w-100 h-100" onclick="applyFilters()">
-                                <i class="fas fa-search"></i> Search Properties
-                            </button>
-                        </div>
+                        <!-- Search Button -->
+                        <button type="submit" class="search-btn">
+                            <i class="fas fa-search"></i> Search
+                        </button>
                     </div>
                 </form>
+
+                <!-- Advanced Filters Toggle -->
+                <div class="advanced-filters-toggle">
+                    <button type="button" onclick="toggleAdvancedFilters()" class="toggle-btn">
+                        <i class="fas fa-sliders-h"></i> Advanced Filters
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+
+                <!-- Advanced Filters Section -->
+                <div id="advancedFilters" class="advanced-filters" style="display: none;">
+                    <div class="filter-row">
+                        <!-- Bedrooms Filter -->
+                        <div class="filter-group">
+                            <label for="bedrooms">Bedrooms</label>
+                            <select id="bedrooms" class="filter-select">
+                                <!-- Options filled by JavaScript -->
+                            </select>
+                        </div>
+
+                        <!-- Bathrooms Filter -->
+                        <div class="filter-group">
+                            <label for="bathrooms">Bathrooms</label>
+                            <select id="bathrooms" class="filter-select">
+                                <!-- Options filled by JavaScript -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Clear Filters Button -->
+                    <div class="filter-actions">
+                        <button type="button" class="clear-all-filters btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Clear All Filters
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Active Filters -->
-            <div id="activeFilters" class="active-filters glass-morphism">
-                <h6><i class="fas fa-filter"></i> Active Filters</h6>
+            <!-- Active Filters Display -->
+            <div id="activeFilters" class="active-filters glass-morphism" style="display: none;">
+                <h6>Active Filters</h6>
                 <div id="filterTags" class="filter-tags"></div>
             </div>
 
             <!-- View Controls -->
             <div class="view-controls-container glass-morphism">
                 <div class="btn-group">
-                    <button onclick="changeView('list')" class="btn btn-outline-primary active">
+                    <button class="btn btn-outline-primary" onclick="changeView('list')">
                         <i class="fas fa-list"></i> List
                     </button>
-                    <button onclick="changeView('grid')" class="btn btn-outline-primary">
+                    <button class="btn btn-outline-primary active" onclick="changeView('grid')">
                         <i class="fas fa-th"></i> Grid
                     </button>
                 </div>
                 <div class="results-count">
-                    <span id="resultsCount">10</span> properties found
+                    <span id="resultsCount">0</span> properties found
                 </div>
             </div>
 
-            <!-- Properties List -->
+            <!-- Properties List Container -->
             <div id="propertiesList" class="properties-container grid-layout"></div>
         </div>
 
-        <!-- Right Panel: Map -->
+        <!-- Right Panel -->
         <div class="right-panel">
             <div id="map" class="map-container glass-morphism"></div>
             <div id="selectedProperty" class="selected-property glass-morphism"></div>
@@ -176,7 +133,7 @@
     </div>
 
     <!-- Property Modal -->
-    <div class="modal fade modal-property" id="propertyModal" tabindex="-1">
+    <div id="propertyModal" class="modal fade modal-property" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content glass-morphism">
                 <div id="propertyModalContent" class="modal-body p-0"></div>
@@ -190,11 +147,26 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/data/listings.js"></script>
-    <script src="js/app.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="src/data/sampleListings.js"></script>
+    <script src="src/js/config.js"></script>
+    <script src="src/js/state.js"></script>
+    <script src="src/js/utils/formatters.js"></script>
+    <script src="src/js/utils/domHelpers.js"></script>
+    <script src="src/js/services/storageService.js"></script>
+    <script src="src/js/services/notificationService.js"></script>
+    <script src="src/js/services/filterService.js"></script>
+    <script src="src/js/services/propertyService.js"></script>
+    <script src="src/js/services/mapService.js"></script>
+    <script src="src/js/components/propertyCard.js"></script>
+    <script src="src/js/components/propertyModal.js"></script>
+    <script src="src/js/components/propertyGallery.js"></script>
+    <script src="src/js/components/propertyMap.js"></script>
+    <script src="src/js/components/filterBar.js"></script>
+    <script src="src/js/app.js"></script>
+    <script src="js/services/shareService.js"></script>
 </body>
-</html> 
+</html>

@@ -1,0 +1,233 @@
+/* Barra de comparación */
+.compare-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--glass-background);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--glass-border);
+    padding: 1rem;
+    z-index: 1030;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+}
+
+.compare-bar.show {
+    transform: translateY(0);
+}
+
+.compare-bar.compare-bar-hidden {
+    transform: translateY(100%);
+}
+
+.compare-bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.compare-bar-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.compare-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: color 0.2s ease;
+}
+
+.compare-close-btn:hover {
+    color: var(--text-primary);
+}
+
+/* Contenedor de propiedades */
+.compare-properties {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) transparent;
+}
+
+.compare-properties::-webkit-scrollbar {
+    height: 6px;
+}
+
+.compare-properties::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.compare-properties::-webkit-scrollbar-thumb {
+    background-color: var(--primary-color);
+    border-radius: 6px;
+}
+
+/* Item de comparación */
+.compare-item {
+    flex: 0 0 250px;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.compare-item img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+}
+
+.compare-item-info {
+    padding: 1rem;
+}
+
+.compare-item-info h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+.compare-item-info p {
+    margin: 0;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.remove-compare-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.remove-compare-btn:hover {
+    background: var(--danger-color);
+    transform: scale(1.1);
+}
+
+/* Acciones de comparación */
+.compare-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.compare-btn, .clear-btn {
+    flex: 1;
+}
+
+/* Tabla de comparación */
+.comparison-table-container {
+    overflow-x: auto;
+    margin: -1rem;
+}
+
+.comparison-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 800px;
+}
+
+.comparison-table th {
+    background: var(--background-light);
+    padding: 1rem;
+    text-align: center;
+    min-width: 200px;
+}
+
+.comparison-table th img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.comparison-table th h4 {
+    margin: 0;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.comparison-table th .price {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin: 0;
+}
+
+.comparison-table td {
+    padding: 1rem;
+    border-top: 1px solid rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.comparison-table td.feature-name {
+    background: var(--background-light);
+    font-weight: 600;
+    text-align: left;
+}
+
+.comparison-table tr:hover td {
+    background: rgba(0,0,0,0.02);
+}
+
+/* Botón de comparación en tarjetas */
+.add-to-compare {
+    background: var(--background-light);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.add-to-compare:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.add-to-compare.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .compare-actions {
+        flex-direction: column;
+    }
+
+    .comparison-table th {
+        min-width: 150px;
+    }
+
+    .compare-item {
+        flex: 0 0 200px;
+    }
+}

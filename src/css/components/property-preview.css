@@ -1,0 +1,79 @@
+/* property-preview.css - Estilos para la vista previa de propiedades */
+
+/* Contenedor de vista previa */
+.selected-property {
+    height: 350px;
+    background: var(--glass-background);
+    border-radius: 15px;
+    overflow: hidden;
+    margin-top: 1rem;
+    display: none;
+}
+
+.selected-property.active {
+    display: block;
+}
+
+/* Contenido de la vista previa */
+.preview-content {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    height: 100%;
+}
+
+.preview-image {
+    position: relative;
+    height: 100%;
+}
+
+.preview-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Detalles de la vista previa */
+.preview-details {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.preview-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.preview-location {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.preview-specs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+/* Acciones de la vista previa */
+.preview-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* Media queries */
+@media (max-width: 1200px) {
+    .preview-content {
+        grid-template-columns: 250px 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .preview-content {
+        grid-template-columns: 1fr;
+        grid-template-rows: 200px 1fr;
+    }
+}
