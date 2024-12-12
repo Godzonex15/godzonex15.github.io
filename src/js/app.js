@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
 const initApp = async () => {
     try {
         showLoadingOverlay();
+        console.log('Starting initialization...'); // Debug log
 
         // Inicializar estado global
         APP_STATE.init();
@@ -31,9 +32,12 @@ const initApp = async () => {
         // Verificar si hay una propiedad en la URL al iniciar
         const params = new URLSearchParams(window.location.search);
         const propertyId = params.get('property');
+        console.log('PropertyId from URL:', propertyId); // Debug log
+        
         if (propertyId) {
             const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
             if (property) {
+                console.log('Found property, showing modal...'); // Debug log
                 setTimeout(() => {
                     PropertyModal.show(propertyId);
                     
@@ -44,7 +48,7 @@ const initApp = async () => {
                             propertyId: propertyId
                         }, '*');
                     }
-                }, 500);
+                }, 1500); // Aumentado a 1500ms
             }
         }
 
@@ -82,23 +86,19 @@ function initializeComponents() {
 }
 
 function initializeFilters() {
-    // Inicializar filtros básicos y avanzados
     Object.entries(FilterService.filterDefinitions).forEach(([filterId, definition]) => {
         const select = document.getElementById(filterId);
         if (select) {
-            // Poblar opciones del select
             select.innerHTML = definition.options.map(option => 
                 `<option value="${option.value}">${option.label}</option>`
             ).join('');
             
-            // Agregar evento change
             select.addEventListener('change', (e) => {
                 updateFilter(filterId, e.target.value);
             });
         }
     });
 
-    // Inicializar botón de búsqueda
     const searchButton = document.querySelector('.search-btn');
     if (searchButton) {
         searchButton.addEventListener('click', (e) => {
@@ -107,7 +107,6 @@ function initializeFilters() {
         });
     }
 
-    // Inicializar formulario de búsqueda
     const searchForm = document.querySelector('.search-container form');
     if (searchForm) {
         searchForm.addEventListener('submit', (e) => {
@@ -116,13 +115,11 @@ function initializeFilters() {
         });
     }
 
-    // Inicializar botón de limpieza
     const clearAllBtn = document.querySelector('.clear-all-filters');
     if (clearAllBtn) {
         clearAllBtn.addEventListener('click', clearAllFilters);
     }
 
-    // Inicializar eventos de filtros activos
     document.getElementById('filterTags')?.addEventListener('click', (e) => {
         const removeBtn = e.target.closest('.remove-filter');
         if (removeBtn) {
@@ -135,12 +132,10 @@ function initializeFilters() {
 }
 
 function initializeEventListeners() {
-    // Evento de cambio de tamaño de ventana
     window.addEventListener('resize', debounce(() => {
         PropertyMap.updateMap();
     }, 250));
 
-    // Eventos de visibilidad de página
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             PropertyMap.updateMap();
@@ -149,7 +144,6 @@ function initializeEventListeners() {
 }
 
 function initializeUIComponents() {
-    // Tooltips y popovers de Bootstrap
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 
@@ -185,12 +179,10 @@ function removeFilter(filterType) {
 }
 
 function clearAllFilters() {
-    // Limpiar todos los selectores
     document.querySelectorAll('select[id]').forEach(select => {
         select.value = '';
     });
 
-    // Limpiar filtros activos
     APP_STATE.activeFilters = {};
     applyFilters();
 }
@@ -215,13 +207,11 @@ function applyFilters() {
 }
 
 function updateResults(filteredListings) {
-    // Actualizar contador de resultados
     const resultsCount = document.getElementById('resultsCount');
     if (resultsCount) {
         resultsCount.textContent = filteredListings.length;
     }
 
-    // Actualizar lista de propiedades
     const container = document.getElementById('propertiesList');
     if (container) {
         container.innerHTML = filteredListings.map(listing => 
@@ -311,7 +301,6 @@ function changeView(viewType) {
         applyFilters();
     }
 
-    // Actualizar botones de vista
     document.querySelectorAll('.view-controls-container .btn').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('onclick').includes(viewType));
     });
@@ -348,18 +337,36 @@ function debounce(func, wait) {
     };
 }
 
+// Nueva función para verificar y mostrar propiedad
+function checkAndShowProperty() {
+    const params = new URLSearchParams(window.location.search);
+    const propertyId = params.get('property');
+    console.log('Checking property:', propertyId); // Debug log
+    
+    if (propertyId) {
+        const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
+        if (property) {
+            console.log('Found property, showing modal for:', propertyId); // Debug log
+            PropertyModal.show(propertyId);
+        }
+    }
+}
+
 // Escuchar mensajes del padre
 window.addEventListener('message', function(event) {
-    if (event.origin === 'https://bajasurrealtors.com') {
-        if (event.data.action === 'showProperty') {
-            const propertyId = event.data.propertyId;
-            const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
-            if (property) {
-                PropertyModal.show(propertyId);
-                
-                if (event.data.filters) {
-                    FilterService.setFilters(event.data.filters);
-                }
+    console.log('Received message:', event.data); // Debug log
+    
+    if (event.data.action === 'showProperty') {
+        const propertyId = event.data.propertyId;
+        console.log('Show property request:', propertyId); // Debug log
+        
+        const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
+        if (property) {
+            console.log('Found property, showing modal...'); // Debug log
+            PropertyModal.show(propertyId);
+            
+            if (event.data.filters) {
+                FilterService.setFilters(event.data.filters);
             }
         }
     }
@@ -368,26 +375,30 @@ window.addEventListener('message', function(event) {
 // Notificar cuando la app está lista
 window.addEventListener('load', function() {
     if (window !== window.top) {
+        // Primer intento
         setTimeout(() => {
+            console.log('First attempt to initialize...'); // Debug log
             window.parent.postMessage({ 
                 type: 'appReady',
                 status: 'ready'
             }, '*');
             
-            const params = new URLSearchParams(window.location.search);
-            const propertyId = params.get('property');
-            if (propertyId) {
-                const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
-                if (property) {
-                    PropertyModal.show(propertyId);
-                }
-            }
+            checkAndShowProperty();
         }, 1000);
+
+        // Segundo intento por si acaso
+        setTimeout(checkAndShowProperty, 2000);
+        
+        // Tercer intento final
+        setTimeout(checkAndShowProperty, 3000);
     }
 });
 
 // Exponer funciones globales necesarias
-window.showPropertyDetails = (propertyId) => PropertyModal.show(propertyId);
+window.showPropertyDetails = (propertyId) => {
+    console.log('showPropertyDetails called with:', propertyId); // Debug log
+    PropertyModal.show(propertyId);
+};
 window.scheduleViewing = (propertyId) => PropertyModal.scheduleViewing(propertyId);
 window.contactAgent = (propertyId) => PropertyModal.contactAgent(propertyId);
 window.changeView = changeView;
