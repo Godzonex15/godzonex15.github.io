@@ -134,6 +134,48 @@ const FilterService = {
         }
     },
 
+    init() {
+        this.initializeFilters();
+        this.loadSavedFilters();
+    },
+
+    initializeFilters() {
+        Object.entries(this.filterDefinitions).forEach(([filterId, definition]) => {
+            const select = document.getElementById(filterId);
+            if (select) {
+                select.innerHTML = definition.options.map(option => 
+                    `<option value="${option.value}">${option.label}</option>`
+                ).join('');
+            }
+        });
+    },
+
+    loadSavedFilters() {
+        const savedFilters = StorageService.loadFilters();
+        if (savedFilters) {
+            Object.entries(savedFilters).forEach(([filterId, value]) => {
+                const select = document.getElementById(filterId);
+                if (select) {
+                    select.value = value;
+                }
+            });
+            return savedFilters;
+        }
+        return {};
+    },
+
+    setFilters(filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+            if (this.filterDefinitions[key]) {
+                const select = document.getElementById(key);
+                if (select && value) {
+                    select.value = value;
+                }
+            }
+        });
+        this.applyFilters(filters);
+    },
+
     applyFilters(properties, filters) {
         if (!properties || !Array.isArray(properties)) return [];
         
@@ -179,8 +221,6 @@ const FilterService = {
     }
 };
 
-// Congelar el servicio para prevenir modificaciones
-Object.freeze(FilterService);
-
-// Exponer el servicio globalmente
+// Inicializar el servicio y exportarlo globalmente
+FilterService.init();
 window.FilterService = FilterService;

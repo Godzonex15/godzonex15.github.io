@@ -37,13 +37,6 @@ const PropertyModal = {
         this.initializeTabs();
         PropertyGallery.initialize();
 
-        // Actualizar URL y metadatos si es una propiedad compartida
-        if (this.state.isShared || window !== window.top) {
-            if (ShareService) {
-                ShareService.handleSharedProperty();
-            }
-        }
-
         // Inicializar mapa después de que el modal esté visible
         setTimeout(() => {
             if (this.state.currentTab === 'location') {
@@ -53,22 +46,20 @@ const PropertyModal = {
     },
 
     render(property) {
-        // Preparar datos para compartir con la página padre
-        const shareData = {
-            type: 'propertySelected',
-            property: {
-                title: property.streetadditionalinfo || property.propertytypelabel,
-                description: property.publicremarks,
-                type: property.propertytypelabel,
-                location: property.mlsareamajor,
-                price: property.currentpricepublic,
-                image: property.photos?.[0]?.Uri1600 || ''
-            }
-        };
-
         // Notificar a la página padre si estamos en un iframe
         if (window !== window.top) {
-            window.parent.postMessage(shareData, 'https://bajasurrealtors.com');
+            window.parent.postMessage({
+                type: 'propertySelected',
+                propertyId: property.id,
+                property: {
+                    title: property.streetadditionalinfo || property.propertytypelabel,
+                    description: property.publicremarks,
+                    type: property.propertytypelabel,
+                    location: property.mlsareamajor,
+                    price: property.currentpricepublic,
+                    image: property.photos?.[0]?.Uri1600 || ''
+                }
+            }, '*');
         }
 
         return `
@@ -141,7 +132,8 @@ const PropertyModal = {
                         </div>
                     ` : ''}
                 </div>
-                        <div class="modal-footer">
+
+                <div class="modal-footer">
                     <div class="action-buttons">
                         <button class="btn btn-outline-primary" 
                                 onclick="APP_STATE.toggleFavorite('${property.id}')">
@@ -359,12 +351,10 @@ const PropertyModal = {
                     targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
                     // Inicializar mapa si es necesario
-                    if (targetId === 'location') {
-                        if (this.state.currentProperty) {
-                            setTimeout(() => {
-                                PropertyMap.initializeDetailMap(this.state.currentProperty);
-                            }, 250);
-                        }
+                    if (targetId === 'location' && this.state.currentProperty) {
+                        setTimeout(() => {
+                            PropertyMap.initializeDetailMap(this.state.currentProperty);
+                        }, 250);
                     }
                 }
             });
@@ -381,7 +371,7 @@ const PropertyModal = {
                 }
                 PropertyMap.destroyDetailMap();
                 
-                // Actualizar URL si la propiedad fue compartida
+                // Si la propiedad fue compartida y estamos en la ventana principal
                 if (this.state.isShared && window === window.top) {
                     window.history.pushState({}, '', window.location.pathname);
                 }
@@ -399,7 +389,9 @@ const PropertyModal = {
         const propertyModal = document.getElementById('propertyModal');
         if (propertyModal) {
             propertyModal.addEventListener('shown.bs.modal', () => {
-                const firstFocusable = propertyModal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                const firstFocusable = propertyModal.querySelector(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                );
                 if (firstFocusable) {
                     firstFocusable.focus();
                 }
@@ -412,5 +404,6 @@ const PropertyModal = {
 PropertyModal.init();
 
 // Exponer métodos necesarios globalmente
+window.PropertyModal = PropertyModal;
 window.scheduleViewing = (propertyId) => PropertyModal.scheduleViewing(propertyId);
 window.contactAgent = (propertyId) => PropertyModal.contactAgent(propertyId);

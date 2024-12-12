@@ -1,66 +1,117 @@
 const PropertyMap = {
     state: {
-        map: null,
+        mainMap: null,
+        detailMap: null,
         markers: [],
         activeMarkerId: null,
-        bounds: null
+        bounds: null,
+        activePopup: null
     },
 
-    initializeMap(containerId, config = CONFIG.map) {
+    initializeMainMap() {
         try {
-            if (this.state.map) {
-                this.state.map.remove();
+            const mapElement = document.getElementById('map');
+            if (!mapElement) return null;
+
+            if (this.state.mainMap) {
+                this.state.mainMap.remove();
             }
 
-            const map = L.map(containerId, {
+            const map = L.map('map', {
                 zoomControl: false,
                 scrollWheelZoom: true
-            }).setView(config.defaultCenter, config.defaultZoom);
+            }).setView(CONFIG.map.defaultCenter, CONFIG.map.defaultZoom);
 
             L.control.zoom({
                 position: 'bottomright'
             }).addTo(map);
 
-            L.tileLayer(config.tileLayer, {
-                attribution: config.attribution,
+            L.tileLayer(CONFIG.map.tileLayer, {
+                attribution: CONFIG.map.attribution,
                 maxZoom: 19
             }).addTo(map);
 
-            this.state.map = map;
+            this.state.mainMap = map;
             return map;
         } catch (error) {
-            console.error('Error initializing map:', error);
+            console.error('Error initializing main map:', error);
             return null;
+        }
+    },
+
+    initializeDetailMap(property) {
+        if (!property?.latitude || !property?.longitude) {
+            console.warn('Invalid property data for detail map');
+            return;
+        }
+
+        const mapContainer = document.getElementById('detailMap');
+        if (!mapContainer) return;
+
+        try {
+            if (this.state.detailMap) {
+                this.state.detailMap.remove();
+                this.state.detailMap = null;
+            }
+
+            const map = L.map('detailMap', {
+                center: [property.latitude, property.longitude],
+                zoom: 15,
+                zoomControl: false,
+                scrollWheelZoom: true
+            });
+
+            L.control.zoom({
+                position: 'bottomright'
+            }).addTo(map);
+
+            L.tileLayer(CONFIG.map.tileLayer, {
+                attribution: CONFIG.map.attribution
+            }).addTo(map);
+
+            const marker = this.createPropertyMarker(property);
+            marker.addTo(map);
+
+            this.state.detailMap = map;
+
+            setTimeout(() => {
+                map.invalidateSize();
+                map.setView([property.latitude, property.longitude], 15);
+            }, 250);
+        } catch (error) {
+            console.error('Error initializing detail map:', error);
         }
     },
 
     addMarkers(properties, onClick) {
         this.clearMarkers();
         
-        if (!properties || !Array.isArray(properties) || properties.length === 0) {
-            return;
-        }
+        if (!properties || properties.length === 0) return;
 
-        const bounds = L.latLngBounds([]);
-        let validMarkers = false;
+        try {
+            const validMarkers = properties
+                .filter(p => p.latitude && p.longitude)
+                .map(property => {
+                    const marker = this.createPropertyMarker(property, onClick);
+                    marker.addTo(this.state.mainMap);
+                    return marker;
+                });
 
-        properties.forEach(property => {
-            if (!property.latitude || !property.longitude) return;
+            this.state.markers = validMarkers;
 
-            const marker = this.createPropertyMarker(property, onClick);
-            marker.addTo(this.state.map);
-            this.state.markers.push(marker);
-            bounds.extend([property.latitude, property.longitude]);
-            validMarkers = true;
-        });
-
-        if (validMarkers) {
-            this.state.bounds = bounds;
-            this.state.map.fitBounds(bounds.pad(0.1));
+            if (validMarkers.length > 0) {
+                const bounds = L.latLngBounds(
+                    validMarkers.map(m => m.getLatLng())
+                );
+                this.state.bounds = bounds;
+                this.state.mainMap.fitBounds(bounds.pad(0.1));
+            }
+        } catch (error) {
+            console.error('Error adding markers:', error);
         }
     },
 
-    createPropertyMarker(property, onClick) {
+    createPropertyMarker(property, onClick = null) {
         const marker = L.marker([property.latitude, property.longitude], {
             icon: L.divIcon({
                 className: 'custom-marker-container',
@@ -82,9 +133,34 @@ const PropertyMap = {
 
         marker.bindPopup(popup);
 
+        // Eventos del marcador
         marker.on('click', () => {
             if (onClick) onClick(property.id);
             this.highlightMarker(property.id);
+        });
+
+        let popupTimeout;
+        
+        marker.on('mouseover', () => {
+            clearTimeout(popupTimeout);
+            if (this.state.activePopup && this.state.activePopup !== popup) {
+                this.state.activePopup.getElement()?.classList.remove('active');
+            }
+            marker.openPopup();
+            popup.getElement()?.classList.add('active');
+            this.state.activePopup = popup;
+        });
+
+        marker.on('mouseout', (e) => {
+            const popupElement = popup.getElement();
+            if (!popupElement?.contains(e.originalEvent.relatedTarget)) {
+                popupTimeout = setTimeout(() => {
+                    if (!popupElement?.matches(':hover')) {
+                        marker.closePopup();
+                        popupElement?.classList.remove('active');
+                    }
+                }, 300);
+            }
         });
 
         return marker;
@@ -176,6 +252,7 @@ const PropertyMap = {
         }
         this.state.markers = [];
         this.state.activeMarkerId = null;
+        this.state.activePopup = null;
     },
 
     highlightMarker(propertyId) {
@@ -195,9 +272,9 @@ const PropertyMap = {
 
     focusMarker(propertyId) {
         const marker = this.state.markers.find(m => m.propertyId === propertyId);
-        if (marker && this.state.map) {
+        if (marker && this.state.mainMap) {
             const latLng = marker.getLatLng();
-            this.state.map.setView([latLng.lat, latLng.lng], 15, {
+            this.state.mainMap.setView([latLng.lat, latLng.lng], 15, {
                 animate: true,
                 duration: 0.5
             });
@@ -206,11 +283,18 @@ const PropertyMap = {
     },
 
     updateMap() {
-        if (this.state.map) {
-            this.state.map.invalidateSize();
-            if (this.state.bounds && !this.state.bounds.isEmpty()) {
-                this.state.map.fitBounds(this.state.bounds.pad(0.1));
+        if (this.state.mainMap) {
+            this.state.mainMap.invalidateSize();
+            if (this.state.bounds && typeof this.state.bounds.isValid === 'function' && this.state.bounds.isValid()) {
+                this.state.mainMap.fitBounds(this.state.bounds.pad(0.1));
             }
+        }
+    },
+
+    destroyDetailMap() {
+        if (this.state.detailMap) {
+            this.state.detailMap.remove();
+            this.state.detailMap = null;
         }
     }
 };

@@ -9,6 +9,7 @@ const APP_STATE = {
     favorites: new Set(),
     modalMap: null,
     initialized: false,
+    isSharedProperty: false,
 
     // Métodos para manipular el estado
     setView(view) {
@@ -31,6 +32,13 @@ const APP_STATE = {
         this.notifySubscribers('propertySelected', propertyId);
         // Llamar directamente a la función de actualización del preview
         updateSelectedPropertyPreview(propertyId);
+
+        // Si la propiedad se seleccionó manualmente, actualizar la URL
+        if (!this.isSharedProperty) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('property', propertyId);
+            window.history.pushState({propertyId}, '', url.toString());
+        }
     },
 
     toggleFavorite(propertyId) {
@@ -67,8 +75,20 @@ const APP_STATE = {
         const savedFavorites = JSON.parse(localStorage.getItem('favorites') || '[]');
         this.favorites = new Set(savedFavorites);
 
+        // Verificar si hay una propiedad compartida en la URL
+        const params = new URLSearchParams(window.location.search);
+        const propertyId = params.get('property');
+        if (propertyId) {
+            this.isSharedProperty = true;
+            this.selectedProperty = propertyId;
+        }
+
         // Configurar suscriptores iniciales
         this.setupInitialSubscribers();
+
+        // Cargar vista guardada
+        const savedView = localStorage.getItem('viewPreference') || 'grid';
+        this.setView(savedView);
 
         // Marcar como inicializado después de un breve retraso
         setTimeout(() => {
@@ -105,6 +125,13 @@ const APP_STATE = {
             if (PropertyMap && typeof PropertyMap.highlightMarker === 'function') {
                 PropertyMap.highlightMarker(propertyId);
             }
+
+            // Actualizar URL si no es una propiedad compartida
+            if (!this.isSharedProperty && window === window.top) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('property', propertyId);
+                window.history.pushState({propertyId}, '', url.toString());
+            }
         });
     
         // Suscriptor para cambios en favoritos
@@ -118,7 +145,10 @@ const APP_STATE = {
                 });
         });
     }
- }
+};
 
 // Inicializar el estado de la aplicación
 APP_STATE.init();
+
+// Exportar el estado global
+window.APP_STATE = APP_STATE;

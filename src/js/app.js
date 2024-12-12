@@ -23,7 +23,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const filteredListings = FilterService.applyFilters(SAMPLE_LISTINGS, APP_STATE.activeFilters);
             const sortedListings = FilterService.sortProperties(filteredListings);
             updateResults(sortedListings);
-            updateMarkers(sortedListings);
+
+            // Verificar si hay una propiedad en la URL
+            const params = new URLSearchParams(window.location.search);
+            const propertyId = params.get('property');
+            if (propertyId) {
+                const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
+                if (property) {
+                    setTimeout(() => {
+                        PropertyModal.show(propertyId);
+                    }, 500);
+                }
+            }
 
             // Marcar como inicializado
             initialized = true;
@@ -220,7 +231,6 @@ function updateFilterTags() {
         .map(([type, value]) => {
             let displayValue = value;
             
-            // Formatear valores específicos
             switch(type) {
                 case 'priceRange':
                     const [min, max] = value.split('-');
@@ -245,7 +255,8 @@ function updateFilterTags() {
             return `
                 <span class="filter-tag">
                     ${filterNames[type] || type}: ${displayValue}
-                    <button class="remove-filter" data-filter-type="${type}" 
+                    <button class="remove-filter" 
+                            data-filter-type="${type}" 
                             aria-label="Remove ${filterNames[type] || type} filter">
                         <i class="fas fa-times"></i>
                     </button>
@@ -264,7 +275,7 @@ function updateFilterTags() {
 
 function toggleAdvancedFilters() {
     const advancedFilters = document.getElementById('advancedFilters');
-    const toggleBtn = document.querySelector('.advanced-filters-toggle i');
+    const toggleBtn = document.querySelector('.advanced-filters-toggle i.fa-chevron-down, .advanced-filters-toggle i.fa-chevron-up');
     
     if (advancedFilters.style.display === 'none') {
         advancedFilters.style.display = 'block';
@@ -286,6 +297,11 @@ function changeView(viewType) {
         container.className = `properties-container ${viewType}-layout`;
         applyFilters();
     }
+
+    // Actualizar botones de vista
+    document.querySelectorAll('.view-controls-container .btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes(viewType));
+    });
 }
 
 function showLoadingOverlay() {
@@ -319,79 +335,12 @@ function debounce(func, wait) {
     };
 }
 
-function updateSelectedPropertyPreview(propertyId) {
-    const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
-    const previewContainer = document.getElementById('selectedProperty');
-    
-    if (!property || !previewContainer) return;
-
-    previewContainer.classList.add('active');
-    
-    previewContainer.innerHTML = `
-        <div class="preview-content">
-            <div class="preview-image">
-                <img src="${property.imageUrl?.Uri800 || property.photos?.[0]?.Uri800 || '/api/placeholder/400/300'}" 
-                     alt="${property.propertytypelabel}"
-                     onerror="this.src='/api/placeholder/400/300'">
-                <div class="price-tag">
-                    ${Formatters.formatPrice(property.currentpricepublic)}
-                    <div class="price-conversion">
-                        ${Formatters.formatPrice(property.currentpricepublic * CONFIG.currency.exchangeRate, { currency: 'MXN' })}
-                    </div>
-                </div>
-            </div>
-            <div class="preview-details">
-                <h3 class="preview-title">${property.streetadditionalinfo || property.propertytypelabel}</h3>
-                <div class="preview-location">
-                    <i class="fas fa-map-marker-alt"></i>
-                    ${property.subdivisionname || ''}, ${property.city}
-                </div>
-                <div class="preview-specs">
-                    ${property.bedstotal ? `
-                        <span class="spec-item">
-                            <i class="fas fa-bed"></i> ${property.bedstotal} beds
-                        </span>
-                    ` : ''}
-                    ${property.bathroomstotaldecimal ? `
-                        <span class="spec-item">
-                            <i class="fas fa-bath"></i> ${property.bathroomstotaldecimal} baths
-                        </span>
-                    ` : ''}
-                    ${property.buildingareatotal ? `
-                        <span class="spec-item">
-                            <i class="fas fa-ruler-combined"></i> 
-                            ${Formatters.formatArea(property.buildingareatotal)}
-                        </span>
-                    ` : ''}
-                </div>
-                <div class="preview-description">
-                    ${property.publicremarks ? 
-                        Formatters.truncateText(property.publicremarks, 150) : ''}
-                </div>
-                <div class="preview-actions">
-                    <button onclick="showPropertyDetails('${property.id}')" class="btn btn-primary">
-                        <i class="fas fa-info-circle"></i> View Details
-                    </button>
-                    <button onclick="contactAgent('${property.id}')" class="btn btn-outline-primary">
-                        <i class="fas fa-envelope"></i> Contact Agent
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    if (PropertyMap && typeof PropertyMap.highlightMarker === 'function') {
-        PropertyMap.highlightMarker(propertyId);
-    }
-}
-
 // Exponer funciones globales necesarias
 window.showPropertyDetails = (propertyId) => PropertyModal.show(propertyId);
 window.scheduleViewing = (propertyId) => PropertyModal.scheduleViewing(propertyId);
 window.contactAgent = (propertyId) => PropertyModal.contactAgent(propertyId);
 window.changeView = changeView;
 window.toggleAdvancedFilters = toggleAdvancedFilters;
-window.updateSelectedPropertyPreview = updateSelectedPropertyPreview;
 window.clearAllFilters = clearAllFilters;
 window.removeFilter = removeFilter;
 window.applyFilters = applyFilters;
