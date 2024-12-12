@@ -3,43 +3,16 @@ const ShareService = {
     iframeUrl: 'https://godzonex15.github.io/',
     
     init() {
-        // Check for shared property on page load
         this.handleSharedProperty();
-        
-        // Listen for URL changes
         window.addEventListener('popstate', () => {
             this.handleSharedProperty();
         });
-
-        // Listen for iframe messages from parent
-        window.addEventListener('message', (event) => {
-            // Verify origin for security
-            if (event.origin === 'https://bajasurrealtors.com') {
-                if (event.data.type === 'shareProperty') {
-                    this.handleSharedProperty();
-                }
-            }
-        });
     },
 
-    generateShareUrl(propertyId, property) {
-        let url;
-        
-        // If we're in the iframe, generate the parent page URL
-        if (window !== window.top) {
-            url = new URL(this.baseUrl);
-        } else {
-            url = new URL(this.iframeUrl);
-        }
-        
-        // Add property ID and details to URL
+    generateShareUrl(propertyId) {
+        // Siempre generar la URL del sitio principal para compartir
+        const url = new URL(this.baseUrl);
         url.searchParams.set('property', propertyId);
-        if (property) {
-            url.searchParams.set('type', property.propertytypelabel);
-            url.searchParams.set('location', property.mlsareamajor);
-            url.searchParams.set('price', property.currentpricepublic);
-        }
-        
         return url.toString();
     },
 
@@ -50,43 +23,27 @@ const ShareService = {
         if (propertyId) {
             const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
             if (property) {
-                // Update filters based on URL parameters
-                if (FilterService && typeof FilterService.setFilters === 'function') {
-                    const filters = {
-                        propertyType: params.get('type'),
-                        location: params.get('location'),
-                        priceRange: params.get('price')
-                    };
-                    FilterService.setFilters(filters);
-                }
-
-                // Show property details
                 setTimeout(() => {
                     PropertyModal.show(propertyId);
                 }, 500);
 
-                // Update map if needed
                 if (PropertyMap && PropertyMap.focusMarker) {
                     PropertyMap.focusMarker(propertyId);
                 }
 
-                // Update URL without reload
-                const newUrl = this.generateShareUrl(propertyId, property);
-                window.history.replaceState({ propertyId }, '', newUrl);
-
-                // Notify parent frame if in iframe
+                // Notificar al padre solo si estamos en un iframe
                 if (window !== window.top) {
                     window.parent.postMessage({
                         type: 'propertySelected',
                         propertyId: propertyId,
                         property: {
+                            title: property.streetadditionalinfo || property.propertytypelabel,
+                            description: property.publicremarks,
                             type: property.propertytypelabel,
                             location: property.mlsareamajor,
-                            price: property.currentpricepublic,
-                            title: property.streetadditionalinfo || property.propertytypelabel,
-                            description: property.publicremarks
+                            price: property.currentpricepublic
                         }
-                    }, 'https://bajasurrealtors.com');
+                    }, '*');
                 }
             }
         }
@@ -96,29 +53,33 @@ const ShareService = {
         const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
         if (!property) return;
 
-        const shareUrl = this.generateShareUrl(propertyId, property);
-        const shareData = {
-            title: `${property.streetadditionalinfo || 'Property'} - Baja Sur Realtors`,
-            text: `Check out this ${property.propertytypelabel} in ${property.city}!`,
-            url: shareUrl
-        };
+        const shareUrl = this.generateShareUrl(propertyId);
+        const shareText = `Check out this ${property.propertytypelabel} in ${property.city}!`;
 
         try {
-            if (navigator.share) {
-                await navigator.share(shareData);
-                NotificationService.success('Property shared successfully!');
-            } else {
-                await navigator.clipboard.writeText(shareUrl);
-                NotificationService.success('Link copied to clipboard!', {
-                    title: 'Share Property',
-                    duration: 2000
-                });
+            // Primero intentar copiar al portapapeles
+            await navigator.clipboard.writeText(shareUrl);
+            NotificationService.success('Link copied to clipboard!', {
+                title: 'Share Property',
+                duration: 2000
+            });
+
+            // Si estamos en un iframe, notificar al padre
+            if (window !== window.top) {
+                window.parent.postMessage({
+                    type: 'shareProperty',
+                    url: shareUrl,
+                    text: shareText
+                }, '*');
             }
         } catch (error) {
-            if (error.name !== 'AbortError') {
-                NotificationService.error('Error sharing property');
-                console.error('Error sharing:', error);
-            }
+            console.error('Error copying to clipboard:', error);
+            
+            // Fallback: Mostrar la URL para copiar manualmente
+            NotificationService.info(`Share this URL: ${shareUrl}`, {
+                title: 'Share Property',
+                duration: 5000
+            });
         }
     }
 };
