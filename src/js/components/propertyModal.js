@@ -102,6 +102,7 @@ const PropertyModal = {
                 </div>
 
                 <div class="modal-footer">
+                
                     <div class="action-buttons">
                         <button class="btn btn-outline-primary" 
                                 onclick="APP_STATE.toggleFavorite('${property.id}')">
@@ -122,6 +123,28 @@ const PropertyModal = {
             </div>
         `;
     },
+
+    renderActions(property) {
+        return `
+            <div class="action-buttons">
+                <button class="btn btn-outline-primary" 
+                        onclick="APP_STATE.toggleFavorite('${property.id}')">
+                    <i class="fa${APP_STATE.favorites.has(property.id) ? 's' : 'r'} fa-heart"></i>
+                    ${APP_STATE.favorites.has(property.id) ? 'Saved' : 'Save'}
+                </button>
+                <button class="btn btn-primary" onclick="scheduleViewing('${property.id}')">
+                    <i class="fas fa-calendar"></i> Schedule Viewing
+                </button>
+                <button class="btn btn-primary" onclick="contactAgent('${property.id}')">
+                    <i class="fas fa-envelope"></i> Contact Agent
+                </button>
+                <button class="btn btn-outline-primary share-button" onclick="handleShare('${property.id}')">
+                    <i class="fas fa-share-alt"></i> Share
+                </button>
+            </div>
+        `;
+    },
+
 
     renderOverview(property) {
         return `
@@ -358,6 +381,57 @@ const PropertyModal = {
                 }
             });
         }
+    },
+
+    handleShare(propertyId) {
+        const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
+        if (!property) return;
+
+        const shareUrl = `${window.location.origin}${window.location.pathname}?property=${propertyId}`;
+        const shareText = `Check out this ${property.propertytypelabel} in ${property.city}!`;
+
+        if (navigator.share) {
+            // Si el navegador soporta Web Share API
+            navigator.share({
+                title: property.streetadditionalinfo || 'Property Details',
+                text: shareText,
+                url: shareUrl
+            }).then(() => {
+                NotificationService.success('Property shared successfully!');
+            }).catch((error) => {
+                if (error.name !== 'AbortError') {
+                    copyToClipboard(shareUrl);
+                }
+            });
+        } else {
+            // Fallback a copiar al portapapeles
+            copyToClipboard(shareUrl);
+        }
+    },
+
+    copyToClipboard(text) {
+        // Crear un elemento temporal
+        const tempInput = document.createElement('input');
+        tempInput.style.position = 'absolute';
+        tempInput.style.left = '-9999px';
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        
+        // Seleccionar y copiar
+        tempInput.select();
+        try {
+            document.execCommand('copy');
+            NotificationService.success('Link copied to clipboard!', {
+                title: 'Share Property',
+                duration: 2000
+            });
+        } catch (err) {
+            NotificationService.error('Failed to copy link');
+            console.error('Failed to copy:', err);
+        }
+        
+        // Limpiar
+        document.body.removeChild(tempInput);
     },
 
     // Métodos de utilidad para el modal
