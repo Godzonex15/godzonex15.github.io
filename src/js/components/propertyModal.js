@@ -1,16 +1,32 @@
 const PropertyModal = {
     state: {
         currentTab: 'gallery',
-        modalInstance: null
+        modalInstance: null,
+        currentProperty: null,
+        isShared: false
     },
 
     init() {
         this.bindEvents();
+        this.checkSharedProperty();
+    },
+
+    checkSharedProperty() {
+        const params = new URLSearchParams(window.location.search);
+        const propertyId = params.get('property');
+        if (propertyId) {
+            this.state.isShared = true;
+            setTimeout(() => {
+                this.show(propertyId);
+            }, 500);
+        }
     },
 
     show(propertyId) {
         const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
         if (!property) return;
+
+        this.state.currentProperty = property;
 
         const modalContent = document.getElementById('propertyModalContent');
         if (!modalContent) return;
@@ -21,6 +37,13 @@ const PropertyModal = {
         this.initializeTabs();
         PropertyGallery.initialize();
 
+        // Actualizar URL y metadatos si es una propiedad compartida
+        if (this.state.isShared || window !== window.top) {
+            if (ShareService) {
+                ShareService.handleSharedProperty();
+            }
+        }
+
         // Inicializar mapa después de que el modal esté visible
         setTimeout(() => {
             if (this.state.currentTab === 'location') {
@@ -30,6 +53,24 @@ const PropertyModal = {
     },
 
     render(property) {
+        // Preparar datos para compartir con la página padre
+        const shareData = {
+            type: 'propertySelected',
+            property: {
+                title: property.streetadditionalinfo || property.propertytypelabel,
+                description: property.publicremarks,
+                type: property.propertytypelabel,
+                location: property.mlsareamajor,
+                price: property.currentpricepublic,
+                image: property.photos?.[0]?.Uri1600 || ''
+            }
+        };
+
+        // Notificar a la página padre si estamos en un iframe
+        if (window !== window.top) {
+            window.parent.postMessage(shareData, 'https://bajasurrealtors.com');
+        }
+
         return `
             <div class="property-detail">
                 <div class="modal-header-fixed">
@@ -100,9 +141,7 @@ const PropertyModal = {
                         </div>
                     ` : ''}
                 </div>
-
-                <div class="modal-footer">
-                
+                        <div class="modal-footer">
                     <div class="action-buttons">
                         <button class="btn btn-outline-primary" 
                                 onclick="APP_STATE.toggleFavorite('${property.id}')">
@@ -123,28 +162,6 @@ const PropertyModal = {
             </div>
         `;
     },
-
-    renderActions(property) {
-        return `
-            <div class="action-buttons">
-                <button class="btn btn-outline-primary" 
-                        onclick="APP_STATE.toggleFavorite('${property.id}')">
-                    <i class="fa${APP_STATE.favorites.has(property.id) ? 's' : 'r'} fa-heart"></i>
-                    ${APP_STATE.favorites.has(property.id) ? 'Saved' : 'Save'}
-                </button>
-                <button class="btn btn-primary" onclick="scheduleViewing('${property.id}')">
-                    <i class="fas fa-calendar"></i> Schedule Viewing
-                </button>
-                <button class="btn btn-primary" onclick="contactAgent('${property.id}')">
-                    <i class="fas fa-envelope"></i> Contact Agent
-                </button>
-                <button class="btn btn-outline-primary share-button" onclick="handleShare('${property.id}')">
-                    <i class="fas fa-share-alt"></i> Share
-                </button>
-            </div>
-        `;
-    },
-
 
     renderOverview(property) {
         return `
@@ -227,11 +244,8 @@ const PropertyModal = {
                 <div class="map-section">
                     <div id="detailMap" class="map-container"></div>
                     <div class="map-actions">
-                        <button onclick="MapService.openInGoogleMaps({
-                            latitude: '${property.latitude}',
-                            longitude: '${property.longitude}',
-                            unparsedaddress: '${property.unparsedaddress}'
-                        })" class="btn btn-outline-primary">
+                        <button onclick="window.open('https://www.google.com/maps?q=${property.latitude},${property.longitude}', '_blank')" 
+                                class="btn btn-outline-primary">
                             <i class="fas fa-map-marked-alt"></i> 
                             View in Google Maps
                         </button>
@@ -313,6 +327,12 @@ const PropertyModal = {
         this.state.modalInstance.show();
     },
 
+    closeModal() {
+        if (this.state.modalInstance) {
+            this.state.modalInstance.hide();
+        }
+    },
+
     initializeTabs() {
         const modalContent = document.getElementById('propertyModalContent');
         if (!modalContent) return;
@@ -340,10 +360,9 @@ const PropertyModal = {
 
                     // Inicializar mapa si es necesario
                     if (targetId === 'location') {
-                        const property = SAMPLE_LISTINGS.find(p => p.id === APP_STATE.selectedProperty);
-                        if (property) {
+                        if (this.state.currentProperty) {
                             setTimeout(() => {
-                                PropertyMap.initializeDetailMap(property);
+                                PropertyMap.initializeDetailMap(this.state.currentProperty);
                             }, 250);
                         }
                     }
@@ -353,7 +372,7 @@ const PropertyModal = {
     },
 
     bindEvents() {
-        // Eventos del modal
+        // Manejar cierre del modal
         document.addEventListener('hidden.bs.modal', (e) => {
             if (e.target.id === 'propertyModal') {
                 if (this.state.modalInstance) {
@@ -361,17 +380,22 @@ const PropertyModal = {
                     this.state.modalInstance = null;
                 }
                 PropertyMap.destroyDetailMap();
+                
+                // Actualizar URL si la propiedad fue compartida
+                if (this.state.isShared && window === window.top) {
+                    window.history.pushState({}, '', window.location.pathname);
+                }
             }
         });
 
         // Eventos de teclado
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.state.modalInstance) {
-                this.state.modalInstance.hide();
+                this.closeModal();
             }
         });
 
-        // Eventos de accesibilidad
+        // Accesibilidad
         const propertyModal = document.getElementById('propertyModal');
         if (propertyModal) {
             propertyModal.addEventListener('shown.bs.modal', () => {
@@ -381,202 +405,12 @@ const PropertyModal = {
                 }
             });
         }
-    },
-
-    handleShare(propertyId) {
-        const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
-        if (!property) return;
-
-        const shareUrl = `${window.location.origin}${window.location.pathname}?property=${propertyId}`;
-        const shareText = `Check out this ${property.propertytypelabel} in ${property.city}!`;
-
-        if (navigator.share) {
-            // Si el navegador soporta Web Share API
-            navigator.share({
-                title: property.streetadditionalinfo || 'Property Details',
-                text: shareText,
-                url: shareUrl
-            }).then(() => {
-                NotificationService.success('Property shared successfully!');
-            }).catch((error) => {
-                if (error.name !== 'AbortError') {
-                    copyToClipboard(shareUrl);
-                }
-            });
-        } else {
-            // Fallback a copiar al portapapeles
-            copyToClipboard(shareUrl);
-        }
-    },
-
-    copyToClipboard(text) {
-        // Crear un elemento temporal
-        const tempInput = document.createElement('input');
-        tempInput.style.position = 'absolute';
-        tempInput.style.left = '-9999px';
-        tempInput.value = text;
-        document.body.appendChild(tempInput);
-        
-        // Seleccionar y copiar
-        tempInput.select();
-        try {
-            document.execCommand('copy');
-            NotificationService.success('Link copied to clipboard!', {
-                title: 'Share Property',
-                duration: 2000
-            });
-        } catch (err) {
-            NotificationService.error('Failed to copy link');
-            console.error('Failed to copy:', err);
-        }
-        
-        // Limpiar
-        document.body.removeChild(tempInput);
-    },
-
-    // Métodos de utilidad para el modal
-    scheduleViewing(propertyId) {
-        const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
-        if (!property) return;
-
-        const modalContent = document.getElementById('propertyModalContent');
-        if (!modalContent) return;
-
-        modalContent.innerHTML = `
-            <div class="schedule-form glass-morphism">
-                <h3><i class="fas fa-calendar-alt"></i> Schedule a Viewing</h3>
-                <form id="scheduleForm" class="schedule-form-content">
-                    <div class="form-group">
-                        <label for="schedule-name">
-                            <i class="fas fa-user"></i> Name
-                        </label>
-                        <input type="text" id="schedule-name" name="name" 
-                               class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="schedule-email">
-                            <i class="fas fa-envelope"></i> Email
-                        </label>
-                        <input type="email" id="schedule-email" name="email" 
-                               class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="schedule-phone">
-                            <i class="fas fa-phone"></i> Phone
-                        </label>
-                        <input type="tel" id="schedule-phone" name="phone" 
-                               class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="schedule-date">
-                            <i class="fas fa-calendar"></i> Preferred Date
-                        </label>
-                        <input type="date" id="schedule-date" name="date" 
-                               class="form-control" required min="${new Date().toISOString().split('T')[0]}">
-                    </div>
-                    <div class="form-group">
-                        <label for="schedule-time">
-                            <i class="fas fa-clock"></i> Preferred Time
-                        </label>
-                        <input type="time" id="schedule-time" name="time" 
-                               class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="schedule-notes">
-                            <i class="fas fa-comment"></i> Additional Notes
-                        </label>
-                        <textarea id="schedule-notes" name="notes" 
-                                  class="form-control" rows="3"></textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-calendar-check"></i> Schedule Viewing
-                        </button>
-                        <button type="button" class="btn btn-outline-primary" 
-                                onclick="PropertyModal.show('${propertyId}')">
-                            <i class="fas fa-arrow-left"></i> Back to Property
-                        </button>
-                    </div>
-                </form>
-            </div>
-        `;
-
-        // Manejar envío del formulario
-        const form = document.getElementById('scheduleForm');
-        if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                alert('Thank you for scheduling a viewing. An agent will confirm your appointment soon.');
-                this.show(propertyId);
-            });
-        }
-    },
-
-    contactAgent(propertyId) {
-        const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
-        if (!property) return;
-
-        const modalContent = document.getElementById('propertyModalContent');
-        if (!modalContent) return;
-
-        modalContent.innerHTML = `
-            <div class="contact-form glass-morphism">
-                <h3><i class="fas fa-envelope"></i> Contact Agent</h3>
-                <form id="contactForm" class="contact-form-content">
-                    <div class="form-group">
-                        <label for="contact-name">
-                            <i class="fas fa-user"></i> Name
-                        </label>
-                        <input type="text" id="contact-name" name="name" 
-                               class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="contact-email">
-                            <i class="fas fa-envelope"></i> Email
-                        </label>
-                        <input type="email" id="contact-email" name="email" 
-                               class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="contact-phone">
-                            <i class="fas fa-phone"></i> Phone
-                        </label>
-                        <input type="tel" id="contact-phone" name="phone" 
-                               class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="contact-message">
-                            <i class="fas fa-comment"></i> Message
-                        </label>
-                        <textarea id="contact-message" name="message" 
-                                  class="form-control" rows="4" required>
-                            I'm interested in the property at ${property.unparsedaddress} (MLS# ${property.mlsid}).
-                        </textarea>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-paper-plane"></i> Send Message
-                        </button>
-                        <button type="button" class="btn btn-outline-primary" 
-                                onclick="PropertyModal.show('${propertyId}')">
-                            <i class="fas fa-arrow-left"></i> Back to Property
-                        </button>
-                    </div>
-                </form>
-            </div>
-        `;
-
-        // Manejar envío del formulario
-        const form = document.getElementById('contactForm');
-        if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                alert('Thank you for your message. An agent will contact you soon.');
-                this.show(propertyId);
-            });
-        }
     }
 };
 
 // Inicializar el componente
 PropertyModal.init();
+
+// Exponer métodos necesarios globalmente
+window.scheduleViewing = (propertyId) => PropertyModal.scheduleViewing(propertyId);
+window.contactAgent = (propertyId) => PropertyModal.contactAgent(propertyId);

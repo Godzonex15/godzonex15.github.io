@@ -3,14 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real Estate Explorer</title>
+    <title>Real Estate Explorer - Baja Sur Realtors</title>
     
-    <!-- CDN externos -->
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://bajasurrealtors.com">
+    
+    <!-- Open Graph Meta Tags for Sharing -->
+    <meta property="og:title" content="Real Estate Explorer - Baja Sur Realtors">
+    <meta property="og:description" content="Explore properties in Baja California Sur">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://godzonex15.github.io/">
+    <meta property="og:image" content="https://godzonex15.github.io/images/og-image.jpg">
+    <meta property="og:site_name" content="Baja Sur Realtors">
+    
+    <!-- External CDNs -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-    <!-- Estilos locales -->
+    <!-- Local Styles -->
     <link rel="stylesheet" href="src/css/utilities.css">
     <link rel="stylesheet" href="src/css/animations.css">
     <link rel="stylesheet" href="src/css/main.css">
@@ -22,8 +33,6 @@
     <link rel="stylesheet" href="src/css/components/property-preview.css">
     <link rel="stylesheet" href="src/css/modal.css">
     <link rel="stylesheet" href="src/css/compare.css">
-    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://bajasurrealtors.com">
-
 </head>
 <body>
     <div class="split-view-container">
@@ -161,12 +170,45 @@
     <script src="src/js/services/filterService.js"></script>
     <script src="src/js/services/propertyService.js"></script>
     <script src="src/js/services/mapService.js"></script>
+    <script src="src/js/services/shareService.js"></script>
     <script src="src/js/components/propertyCard.js"></script>
     <script src="src/js/components/propertyModal.js"></script>
     <script src="src/js/components/propertyGallery.js"></script>
     <script src="src/js/components/propertyMap.js"></script>
     <script src="src/js/components/filterBar.js"></script>
     <script src="src/js/app.js"></script>
-    <script src="js/services/shareService.js"></script>
+
+    <!-- Dynamic Meta Tags Script -->
+    <script>
+        // Update meta tags when property is selected
+        window.addEventListener('message', function(event) {
+            if (event.origin === 'https://bajasurrealtors.com' && event.data.type === 'propertySelected') {
+                const property = event.data.property;
+                // Update page metadata
+                document.title = `${property.title} - Baja Sur Realtors`;
+                document.querySelector('meta[property="og:title"]').content = property.title;
+                document.querySelector('meta[property="og:description"]').content = property.description;
+                if (property.image) {
+                    document.querySelector('meta[property="og:image"]').content = property.image;
+                }
+            }
+        });
+
+        // Handle messages from parent frame
+        window.addEventListener('message', function(event) {
+            if (event.origin === 'https://bajasurrealtors.com') {
+                if (event.data.action === 'updateFilters') {
+                    FilterService.setFilters(event.data.filters);
+                }
+            }
+        });
+
+        // Notify parent when app is ready
+        window.addEventListener('load', function() {
+            if (window !== window.top) {
+                window.parent.postMessage({ type: 'appReady' }, 'https://bajasurrealtors.com');
+            }
+        });
+    </script>
 </body>
 </html>
