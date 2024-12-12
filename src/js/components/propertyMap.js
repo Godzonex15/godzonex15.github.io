@@ -1,37 +1,32 @@
 const PropertyMap = {
     state: {
-        mainMap: null,
-        detailMap: null,
+        map: null,
         markers: [],
         activeMarkerId: null,
-        bounds: null,
-        activePopup: null
+        bounds: null
     },
 
-    initializeMainMap() {
-        const mapElement = document.getElementById('map');
-        if (!mapElement) return;
-
-        if (this.state.mainMap) {
-            this.state.mainMap.remove();
-        }
-
+    initializeMap(containerId, config = CONFIG.map) {
         try {
-            const map = L.map('map', {
+            if (this.state.map) {
+                this.state.map.remove();
+            }
+
+            const map = L.map(containerId, {
                 zoomControl: false,
                 scrollWheelZoom: true
-            }).setView(CONFIG.map.defaultCenter, CONFIG.map.defaultZoom);
+            }).setView(config.defaultCenter, config.defaultZoom);
 
             L.control.zoom({
                 position: 'bottomright'
             }).addTo(map);
 
-            L.tileLayer(CONFIG.map.tileLayer, {
-                attribution: CONFIG.map.attribution,
+            L.tileLayer(config.tileLayer, {
+                attribution: config.attribution,
                 maxZoom: 19
             }).addTo(map);
 
-            this.state.mainMap = map;
+            this.state.map = map;
             return map;
         } catch (error) {
             console.error('Error initializing map:', error);
@@ -39,78 +34,37 @@ const PropertyMap = {
         }
     },
 
-    initializeDetailMap(property) {
-        if (!property?.latitude || !property?.longitude) {
-            console.warn('Invalid property data for map');
-            return;
-        }
-
-        const mapContainer = document.getElementById('detailMap');
-        if (!mapContainer) {
-            console.warn('Map container not found');
-            return;
-        }
-
-        if (this.state.detailMap) {
-            this.state.detailMap.remove();
-            this.state.detailMap = null;
-        }
-
-        try {
-            const map = L.map('detailMap', {
-                center: [property.latitude, property.longitude],
-                zoom: 15,
-                zoomControl: false,
-                scrollWheelZoom: true
-            });
-
-            L.control.zoom({
-                position: 'bottomright'
-            }).addTo(map);
-
-            L.tileLayer(CONFIG.map.tileLayer, {
-                attribution: CONFIG.map.attribution
-            }).addTo(map);
-
-            const marker = this.createPropertyMarker(property, true);
-            marker.addTo(map);
-
-            this.state.detailMap = map;
-
-            setTimeout(() => {
-                map.invalidateSize();
-                map.setView([property.latitude, property.longitude], 15);
-            }, 250);
-
-        } catch (error) {
-            console.error('Error initializing detail map:', error);
-        }
-    },
-
     addMarkers(properties, onClick) {
         this.clearMarkers();
+        
+        if (!properties || !Array.isArray(properties) || properties.length === 0) {
+            return;
+        }
+
         const bounds = L.latLngBounds([]);
+        let validMarkers = false;
 
         properties.forEach(property => {
             if (!property.latitude || !property.longitude) return;
 
-            const marker = this.createPropertyMarker(property, false, onClick);
-            marker.addTo(this.state.mainMap);
+            const marker = this.createPropertyMarker(property, onClick);
+            marker.addTo(this.state.map);
             this.state.markers.push(marker);
             bounds.extend([property.latitude, property.longitude]);
+            validMarkers = true;
         });
 
-        if (!bounds.isEmpty()) {
+        if (validMarkers) {
             this.state.bounds = bounds;
-            this.state.mainMap.fitBounds(bounds.pad(0.1));
+            this.state.map.fitBounds(bounds.pad(0.1));
         }
     },
 
-    createPropertyMarker(property, isDetail = false, onClick = null) {
+    createPropertyMarker(property, onClick) {
         const marker = L.marker([property.latitude, property.longitude], {
             icon: L.divIcon({
                 className: 'custom-marker-container',
-                html: this.createMarkerContent(property, isDetail),
+                html: this.createMarkerContent(property),
                 iconSize: [40, 40],
                 iconAnchor: [20, 40],
                 popupAnchor: [0, -40]
@@ -119,7 +73,7 @@ const PropertyMap = {
 
         marker.propertyId = property.id;
 
-        let popup = L.popup({
+        const popup = L.popup({
             offset: [0, -35],
             closeButton: false,
             className: 'property-popup-container',
@@ -133,48 +87,10 @@ const PropertyMap = {
             this.highlightMarker(property.id);
         });
 
-        // Mejorar el manejo de eventos hover
-        let popupTimeout;
-        marker.on('mouseover', () => {
-            clearTimeout(popupTimeout);
-            if (this.state.activePopup && this.state.activePopup !== popup) {
-                this.state.activePopup.getElement()?.classList.remove('active');
-            }
-            marker.openPopup();
-            popup.getElement()?.classList.add('active');
-            this.state.activePopup = popup;
-        });
-
-        marker.on('mouseout', (e) => {
-            const popupElement = popup.getElement();
-            if (!popupElement?.contains(e.originalEvent.relatedTarget)) {
-                popupTimeout = setTimeout(() => {
-                    if (!popupElement?.matches(':hover')) {
-                        marker.closePopup();
-                        popupElement?.classList.remove('active');
-                    }
-                }, 300);
-            }
-        });
-
-        // Manejar eventos del popup
-        popup.on('mouseover', () => {
-            clearTimeout(popupTimeout);
-        });
-
-        popup.on('mouseout', (e) => {
-            if (!marker.getElement()?.contains(e.originalEvent.relatedTarget)) {
-                popupTimeout = setTimeout(() => {
-                    marker.closePopup();
-                    popup.getElement()?.classList.remove('active');
-                }, 300);
-            }
-        });
-
         return marker;
     },
 
-    createMarkerContent(property, isDetail = false) {
+    createMarkerContent(property) {
         const getMarkerClass = (propertyType) => {
             switch(propertyType.toLowerCase()) {
                 case 'houses':
@@ -252,6 +168,16 @@ const PropertyMap = {
         `;
     },
 
+    clearMarkers() {
+        if (this.state.markers) {
+            this.state.markers.forEach(marker => {
+                if (marker) marker.remove();
+            });
+        }
+        this.state.markers = [];
+        this.state.activeMarkerId = null;
+    },
+
     highlightMarker(propertyId) {
         this.state.markers.forEach(marker => {
             const element = marker.getElement();
@@ -265,24 +191,13 @@ const PropertyMap = {
             }
         });
         this.state.activeMarkerId = propertyId;
-
-        // Centrar el mapa en el marcador seleccionado
-        const selectedMarker = this.state.markers.find(m => m.propertyId === propertyId);
-        if (selectedMarker && this.state.mainMap) {
-            const latLng = selectedMarker.getLatLng();
-            this.state.mainMap.setView([latLng.lat, latLng.lng], 15, {
-                animate: true,
-                duration: 0.5
-            });
-            selectedMarker.openPopup();
-        }
     },
 
     focusMarker(propertyId) {
         const marker = this.state.markers.find(m => m.propertyId === propertyId);
-        if (marker && this.state.mainMap) {
+        if (marker && this.state.map) {
             const latLng = marker.getLatLng();
-            this.state.mainMap.setView([latLng.lat, latLng.lng], 15, {
+            this.state.map.setView([latLng.lat, latLng.lng], 15, {
                 animate: true,
                 duration: 0.5
             });
@@ -290,26 +205,15 @@ const PropertyMap = {
         }
     },
 
-    clearMarkers() {
-        this.state.markers.forEach(marker => marker.remove());
-        this.state.markers = [];
-        this.state.activeMarkerId = null;
-        this.state.activePopup = null;
-    },
-
-    destroyDetailMap() {
-        if (this.state.detailMap) {
-            this.state.detailMap.remove();
-            this.state.detailMap = null;
-        }
-    },
-
     updateMap() {
-        if (this.state.mainMap) {
-            this.state.mainMap.invalidateSize();
+        if (this.state.map) {
+            this.state.map.invalidateSize();
             if (this.state.bounds && !this.state.bounds.isEmpty()) {
-                this.state.mainMap.fitBounds(this.state.bounds.pad(0.1));
+                this.state.map.fitBounds(this.state.bounds.pad(0.1));
             }
         }
     }
 };
+
+// Exportar el servicio
+window.PropertyMap = PropertyMap;

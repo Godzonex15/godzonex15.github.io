@@ -7,11 +7,19 @@ const ShareService = {
         window.addEventListener('popstate', () => {
             this.handleSharedProperty();
         });
+
+        // Escuchar mensajes del padre
+        window.addEventListener('message', (event) => {
+            if (event.origin === 'https://bajasurrealtors.com') {
+                if (event.data.type === 'showProperty') {
+                    this.handleSharedProperty();
+                }
+            }
+        });
     },
 
     generateShareUrl(propertyId) {
-        // Siempre generar la URL del sitio principal para compartir
-        const url = new URL(this.baseUrl);
+        const url = new URL(window !== window.top ? this.baseUrl : this.iframeUrl);
         url.searchParams.set('property', propertyId);
         return url.toString();
     },
@@ -23,15 +31,23 @@ const ShareService = {
         if (propertyId) {
             const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
             if (property) {
+                // Mostrar la propiedad
                 setTimeout(() => {
                     PropertyModal.show(propertyId);
                 }, 500);
 
+                // Actualizar el mapa
                 if (PropertyMap && PropertyMap.focusMarker) {
                     PropertyMap.focusMarker(propertyId);
                 }
 
-                // Notificar al padre solo si estamos en un iframe
+                // Solo actualizar URL si no estamos en iframe
+                if (window === window.top) {
+                    const newUrl = this.generateShareUrl(propertyId);
+                    window.history.replaceState({ propertyId }, '', newUrl);
+                }
+
+                // Notificar al padre si estamos en iframe
                 if (window !== window.top) {
                     window.parent.postMessage({
                         type: 'propertySelected',
@@ -41,7 +57,8 @@ const ShareService = {
                             description: property.publicremarks,
                             type: property.propertytypelabel,
                             location: property.mlsareamajor,
-                            price: property.currentpricepublic
+                            price: property.currentpricepublic,
+                            image: property.photos?.[0]?.Uri1600 || ''
                         }
                     }, '*');
                 }
@@ -57,35 +74,50 @@ const ShareService = {
         const shareText = `Check out this ${property.propertytypelabel} in ${property.city}!`;
 
         try {
-            // Primero intentar copiar al portapapeles
+            // Intentar usar el portapapeles moderno
             await navigator.clipboard.writeText(shareUrl);
             NotificationService.success('Link copied to clipboard!', {
                 title: 'Share Property',
                 duration: 2000
             });
-
-            // Si estamos en un iframe, notificar al padre
-            if (window !== window.top) {
-                window.parent.postMessage({
-                    type: 'shareProperty',
-                    url: shareUrl,
-                    text: shareText
-                }, '*');
-            }
         } catch (error) {
-            console.error('Error copying to clipboard:', error);
-            
-            // Fallback: Mostrar la URL para copiar manualmente
-            NotificationService.info(`Share this URL: ${shareUrl}`, {
-                title: 'Share Property',
-                duration: 5000
-            });
+            // Fallback para copiar
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = shareUrl;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                NotificationService.success('Link copied to clipboard!', {
+                    title: 'Share Property',
+                    duration: 2000
+                });
+            } catch (err) {
+                // Si todo falla, mostrar la URL para copiar manualmente
+                NotificationService.info(
+                    'Could not automatically copy the link. Here it is to copy manually:\n' + shareUrl,
+                    { title: 'Share Property', duration: 5000 }
+                );
+            }
+        }
+
+        // Notificar al padre si estamos en iframe
+        if (window !== window.top) {
+            window.parent.postMessage({
+                type: 'shareProperty',
+                propertyId,
+                url: shareUrl,
+                text: shareText
+            }, '*');
         }
     }
 };
 
-// Initialize service
+// Inicializar el servicio
 ShareService.init();
 
-// Export for global use
+// Exportar para uso global
 window.ShareService = ShareService;
