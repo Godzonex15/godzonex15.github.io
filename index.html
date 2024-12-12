@@ -160,9 +160,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <!-- Application Scripts -->
-    <script src="src/data/sampleListings.js"></script>
     <script src="src/js/config.js"></script>
-    <script src="src/js/state.js"></script>
+    <script src="src/data/sampleListings.js"></script>
     <script src="src/js/utils/formatters.js"></script>
     <script src="src/js/utils/domHelpers.js"></script>
     <script src="src/js/services/storageService.js"></script>
@@ -171,6 +170,7 @@
     <script src="src/js/services/propertyService.js"></script>
     <script src="src/js/services/mapService.js"></script>
     <script src="src/js/services/shareService.js"></script>
+    <script src="src/js/state.js"></script>
     <script src="src/js/components/propertyCard.js"></script>
     <script src="src/js/components/propertyModal.js"></script>
     <script src="src/js/components/propertyGallery.js"></script>
@@ -178,27 +178,18 @@
     <script src="src/js/components/filterBar.js"></script>
     <script src="src/js/app.js"></script>
 
-    <!-- Dynamic Meta Tags Script -->
+    <!-- Initialization Script -->
     <script>
-        // Update meta tags when property is selected
-        window.addEventListener('message', function(event) {
-            if (event.origin === 'https://bajasurrealtors.com' && event.data.type === 'propertySelected') {
-                const property = event.data.property;
-                // Update page metadata
-                document.title = `${property.title} - Baja Sur Realtors`;
-                document.querySelector('meta[property="og:title"]').content = property.title;
-                document.querySelector('meta[property="og:description"]').content = property.description;
-                if (property.image) {
-                    document.querySelector('meta[property="og:image"]').content = property.image;
-                }
-            }
-        });
-
         // Handle messages from parent frame
         window.addEventListener('message', function(event) {
             if (event.origin === 'https://bajasurrealtors.com') {
                 if (event.data.action === 'updateFilters') {
                     FilterService.setFilters(event.data.filters);
+                } else if (event.data.action === 'showProperty') {
+                    const propertyId = event.data.propertyId;
+                    if (propertyId) {
+                        PropertyModal.show(propertyId);
+                    }
                 }
             }
         });

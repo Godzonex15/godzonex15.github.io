@@ -1,54 +1,68 @@
+// Variables globales
+let initialized = false;
+
+// Evento principal de carga del documento
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Initializing app...');
-    
-    // Variable para controlar inicialización
-    let initialized = false;
-
-    // Función para inicializar la app
-    const initApp = async () => {
-        try {
-            showLoadingOverlay();
-
-            // Inicializar estado global
-            APP_STATE.init();
-            
-            // Inicializar componentes principales
-            initializeComponents();
-            
-            // Establecer vista inicial
-            const savedView = StorageService.loadViewPreference();
-            changeView(savedView);
-
-            // Cargar propiedades iniciales sin mostrar error
-            const filteredListings = FilterService.applyFilters(SAMPLE_LISTINGS, APP_STATE.activeFilters);
-            const sortedListings = FilterService.sortProperties(filteredListings);
-            updateResults(sortedListings);
-
-            // Verificar si hay una propiedad en la URL
-            const params = new URLSearchParams(window.location.search);
-            const propertyId = params.get('property');
-            if (propertyId) {
-                const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
-                if (property) {
-                    setTimeout(() => {
-                        PropertyModal.show(propertyId);
-                    }, 500);
-                }
-            }
-
-            // Marcar como inicializado
-            initialized = true;
-
-        } catch (error) {
-            console.error('Error initializing app:', error);
-        } finally {
-            hideLoadingOverlay();
-        }
-    };
-
-    // Iniciar la aplicación
     initApp();
 });
+
+// Función principal de inicialización
+const initApp = async () => {
+    try {
+        showLoadingOverlay();
+
+        // Inicializar estado global
+        APP_STATE.init();
+        
+        // Inicializar componentes principales
+        initializeComponents();
+        
+        // Establecer vista inicial
+        const savedView = StorageService.loadViewPreference();
+        changeView(savedView);
+
+        // Cargar propiedades iniciales
+        const filteredListings = FilterService.applyFilters(SAMPLE_LISTINGS, APP_STATE.activeFilters);
+        const sortedListings = FilterService.sortProperties(filteredListings);
+        updateResults(sortedListings);
+        updateMarkers(sortedListings);
+
+        // Verificar si hay una propiedad en la URL al iniciar
+        const params = new URLSearchParams(window.location.search);
+        const propertyId = params.get('property');
+        if (propertyId) {
+            const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
+            if (property) {
+                setTimeout(() => {
+                    PropertyModal.show(propertyId);
+                    
+                    // Notificar a la página padre
+                    if (window !== window.top) {
+                        window.parent.postMessage({
+                            type: 'propertyLoaded',
+                            propertyId: propertyId
+                        }, '*');
+                    }
+                }, 500);
+            }
+        }
+
+        initialized = true;
+
+    } catch (error) {
+        console.error('Error initializing app:', error);
+    } finally {
+        hideLoadingOverlay();
+        // Notificar que la inicialización está completa
+        if (window !== window.top) {
+            window.parent.postMessage({ 
+                type: 'appInitialized',
+                status: 'complete'
+            }, '*');
+        }
+    }
+};
 
 function initializeComponents() {
     // Inicializar mapa principal
@@ -192,7 +206,7 @@ function applyFilters() {
         updateFilterTags();
     } catch (error) {
         console.error('Error applying filters:', error);
-        if (APP_STATE.initialized) {
+        if (initialized) {
             NotificationService.error('Error filtering properties. Please try again.');
         }
     } finally {
@@ -217,9 +231,11 @@ function updateResults(filteredListings) {
 }
 
 function updateMarkers(filteredListings) {
-    PropertyMap.addMarkers(filteredListings, (propertyId) => {
-        APP_STATE.setSelectedProperty(propertyId);
-    });
+    if (PropertyMap) {
+        PropertyMap.addMarkers(filteredListings, (propertyId) => {
+            APP_STATE.setSelectedProperty(propertyId);
+        });
+    }
 }
 
 function updateFilterTags() {
@@ -255,9 +271,7 @@ function updateFilterTags() {
             return `
                 <span class="filter-tag">
                     ${filterNames[type] || type}: ${displayValue}
-                    <button class="remove-filter" 
-                            data-filter-type="${type}" 
-                            aria-label="Remove ${filterNames[type] || type} filter">
+                    <button class="remove-filter" data-filter-type="${type}">
                         <i class="fas fa-times"></i>
                     </button>
                 </span>
@@ -266,7 +280,6 @@ function updateFilterTags() {
 
     container.innerHTML = tags;
 
-    // Actualizar visibilidad del contenedor de filtros activos
     const activeFilters = document.getElementById('activeFilters');
     if (activeFilters) {
         activeFilters.style.display = Object.keys(APP_STATE.activeFilters).length > 0 ? 'block' : 'none';
@@ -334,6 +347,44 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+// Escuchar mensajes del padre
+window.addEventListener('message', function(event) {
+    if (event.origin === 'https://bajasurrealtors.com') {
+        if (event.data.action === 'showProperty') {
+            const propertyId = event.data.propertyId;
+            const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
+            if (property) {
+                PropertyModal.show(propertyId);
+                
+                if (event.data.filters) {
+                    FilterService.setFilters(event.data.filters);
+                }
+            }
+        }
+    }
+});
+
+// Notificar cuando la app está lista
+window.addEventListener('load', function() {
+    if (window !== window.top) {
+        setTimeout(() => {
+            window.parent.postMessage({ 
+                type: 'appReady',
+                status: 'ready'
+            }, '*');
+            
+            const params = new URLSearchParams(window.location.search);
+            const propertyId = params.get('property');
+            if (propertyId) {
+                const property = SAMPLE_LISTINGS.find(p => p.id === propertyId);
+                if (property) {
+                    PropertyModal.show(propertyId);
+                }
+            }
+        }, 1000);
+    }
+});
 
 // Exponer funciones globales necesarias
 window.showPropertyDetails = (propertyId) => PropertyModal.show(propertyId);
